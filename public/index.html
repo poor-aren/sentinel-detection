@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SENTINEL — Human Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --bg: #020408;
+    --bg2: #050c12;
+    --panel: #080f18;
+    --border: #0d2235;
+    --accent: #00e5ff;
+    --accent2: #ff3d57;
+    --green: #00ff88;
+    --yellow: #ffcc00;
+    --text: #c8dde8;
+    --dim: #3a5a70;
+    --glow: 0 0 20px rgba(0,229,255,0.4);
+    --glow-red: 0 0 30px rgba(255,61,87,0.5);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated scan line overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,229,255,0.015) 2px,
+      rgba(0,229,255,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* Scan sweep animation */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -100%;
+    left: 0; right: 0;
+    height: 200px;
+    background: linear-gradient(to bottom, transparent, rgba(0,229,255,0.03), transparent);
+    animation: sweep 6s linear infinite;
+    pointer-events: none;
+    z-index: 998;
+  }
+
+  @keyframes sweep { to { top: 100%; } }
+
+  /* ---- HEADER ---- */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, var(--bg2), var(--bg));
+    position: relative;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 40%;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-icon {
+    width: 42px; height: 42px;
+    border: 2px solid var(--accent);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: var(--glow), inset 0 0 15px rgba(0,229,255,0.1);
+    animation: pulse-border 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: var(--accent); box-shadow: var(--glow), inset 0 0 15px rgba(0,229,255,0.1); }
+    50% { border-color: rgba(0,229,255,0.5); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+  }
+
+  .logo-text {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #fff;
+    text-shadow: 0 0 20px var(--accent);
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    font-family: 'Share Tech Mono', monospace;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 1px;
+    color: var(--dim);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+
+  .status-dot.offline { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); animation: none; }
+
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  #clock {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+
+  /* ---- MAIN GRID ---- */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    grid-template-rows: auto 1fr;
+    gap: 1px;
+    height: calc(100vh - 75px);
+    background: var(--border);
+  }
+
+  /* ---- STATS ROW ---- */
+  .stats-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .stat-card {
+    background: var(--panel);
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+  }
+
+  .stat-card.danger::before { background: var(--accent2); }
+  .stat-card.warning::before { background: var(--yellow); }
+  .stat-card.ok::before { background: var(--green); }
+
+  .stat-icon { font-size: 28px; opacity: 0.6; }
+
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .stat-value.big-alert {
+    color: var(--accent2);
+    text-shadow: var(--glow-red);
+    animation: flash-num 0.5s ease-in-out 3;
+  }
+
+  @keyframes flash-num {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .stat-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    text-transform: uppercase;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ---- CAMERA FEED ---- */
+  .camera-panel {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,229,255,0.03);
+  }
+
+  .panel-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .camera-frame {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    overflow: hidden;
+  }
+
+  #cameraFeed {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: none;
+  }
+
+  .no-signal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    color: var(--dim);
+  }
+
+  .no-signal-icon { font-size: 64px; opacity: 0.3; }
+  .no-signal-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 3px;
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  /* Detection boxes overlay */
+  #detectionCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+
+  /* Corner brackets */
+  .corner { position: absolute; width: 20px; height: 20px; }
+  .corner.tl { top: 12px; left: 12px; border-top: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .corner.tr { top: 12px; right: 12px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+  .corner.bl { bottom: 12px; left: 12px; border-bottom: 2px solid var(--accent); border-left: 2px solid var(--accent); }
+  .corner.br { bottom: 12px; right: 12px; border-bottom: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+
+  /* ---- SIDE PANEL ---- */
+  .side-panel {
+    background: var(--panel);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Alert banner */
+  #alertBanner {
+    display: none;
+    padding: 14px 20px;
+    background: rgba(255,61,87,0.15);
+    border: 1px solid rgba(255,61,87,0.4);
+    margin: 12px;
+    border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    letter-spacing: 1px;
+    animation: alert-pulse 1s ease-in-out infinite;
+    text-align: center;
+  }
+
+  @keyframes alert-pulse {
+    0%, 100% { background: rgba(255,61,87,0.15); }
+    50% { background: rgba(255,61,87,0.25); }
+  }
+
+  /* Detection log */
+  .log-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-entry {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(13,34,53,0.5);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: slideIn 0.3s ease-out;
+    cursor: default;
+    transition: background 0.2s;
+  }
+
+  .log-entry:hover { background: rgba(0,229,255,0.03); }
+
+  @keyframes slideIn {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .log-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--dim);
+    white-space: nowrap;
+    padding-top: 2px;
+  }
+
+  .log-count {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: center;
+    line-height: 1;
+  }
+
+  .log-count.alert-count { color: var(--accent2); }
+
+  .log-detail {
+    font-size: 12px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  /* ---- CONFIDENCE BARS ---- */
+  .detect-list {
+    padding: 0 12px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .detect-list-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    padding: 10px 0 8px;
+    text-transform: uppercase;
+  }
+
+  .detect-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .detect-label {
+    font-size: 12px;
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    min-width: 60px;
+  }
+
+  .conf-bar-bg {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .conf-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--green));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  .conf-pct {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Radar animation when detecting */
+  .radar-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60px; height: 60px;
+    border: 1px solid var(--accent2);
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+  }
+
+  .radar-ring.active {
+    display: block;
+    animation: radarExpand 2s ease-out infinite;
+  }
+
+  @keyframes radarExpand {
+    0% { width: 40px; height: 40px; opacity: 0.8; }
+    100% { width: 200px; height: 200px; opacity: 0; }
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto auto 400px auto; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .camera-panel, .side-panel { grid-column: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">👁</div>
+    <div>
+      <div class="logo-text">SENTINEL</div>
+      <div class="logo-sub">Human Detection System · ESP32-CAM</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-badge">
+      <div class="status-dot" id="serverDot"></div>
+      <span id="serverStatus">CONNECTING...</span>
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card" id="cardHuman">
+      <div class="stat-icon">🧍</div>
+      <div>
+        <div class="stat-value" id="statHuman">0</div>
+        <div class="stat-label">Manusia Terdeteksi</div>
+      </div>
+    </div>
+    <div class="stat-card ok">
+      <div class="stat-icon">📸</div>
+      <div>
+        <div class="stat-value" id="statFrames">0</div>
+        <div class="stat-label">Total Frame</div>
+      </div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-icon">⏱</div>
+      <div>
+        <div class="stat-value" id="statInterval">10s</div>
+        <div class="stat-label">Interval Kirim</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🕐</div>
+      <div>
+        <div class="stat-value" id="statLastSeen" style="font-size:18px;padding-top:6px">--</div>
+        <div class="stat-label">Update Terakhir</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CAMERA PANEL -->
+  <div class="camera-panel">
+    <div class="panel-header">
+      <span class="panel-title">◉ LIVE FEED · ESP32-CAM</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim)" id="imgSize">---</span>
+    </div>
+    <div class="camera-frame" id="cameraFrame">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="no-signal" id="noSignal">
+        <div class="no-signal-icon">📡</div>
+        <div class="no-signal-text">MENUNGGU SINYAL ESP32...</div>
+      </div>
+      <img id="cameraFeed" alt="Camera Feed">
+      <canvas id="detectionCanvas"></canvas>
+      <div class="radar-ring" id="radarRing"></div>
+    </div>
+  </div>
+
+  <!-- SIDE PANEL -->
+  <div class="side-panel">
+    <div class="panel-header">
+      <span class="panel-title">▣ LOG DETEKSI</span>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim)" id="logCount">0 entri</span>
+    </div>
+
+    <div id="alertBanner">⚠ MANUSIA TERDETEKSI — AREA AKTIF</div>
+
+    <div class="log-area" id="logArea">
+      <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px">
+        MENUNGGU DATA...
+      </div>
+    </div>
+
+    <div class="detect-list" id="detectList">
+      <div class="detect-list-title">// Deteksi Terkini</div>
+      <div id="confidenceList" style="color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:12px;padding:4px 0">
+        Belum ada data
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const socket = io();
+let frameCount = 0;
+let logEntries = [];
+let isFirstEntry = true;
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('id-ID');
+}, 1000);
+
+// Status dot
+socket.on('connect', () => {
+  document.getElementById('serverDot').className = 'status-dot';
+  document.getElementById('serverStatus').textContent = 'TERHUBUNG';
+});
+socket.on('disconnect', () => {
+  document.getElementById('serverDot').className = 'status-dot offline';
+  document.getElementById('serverStatus').textContent = 'TERPUTUS';
+});
+
+// Main detection event
+socket.on('detection', (data) => {
+  frameCount++;
+  updateStats(data);
+  updateCamera(data);
+  updateLog(data);
+  updateConfidenceList(data.predictions);
+  updateAlert(data.humanCount);
+});
+
+function updateStats(data) {
+  const humanEl = document.getElementById('statHuman');
+  humanEl.textContent = data.humanCount;
+
+  // Flash if humans detected
+  if (data.humanCount > 0) {
+    humanEl.className = 'stat-value big-alert';
+    document.getElementById('cardHuman').className = 'stat-card danger';
+    setTimeout(() => {
+      humanEl.className = 'stat-value';
+    }, 1500);
+  } else {
+    humanEl.className = 'stat-value';
+    document.getElementById('cardHuman').className = 'stat-card ok';
+  }
+
+  document.getElementById('statFrames').textContent = frameCount;
+  const d = new Date(data.timestamp);
+  document.getElementById('statLastSeen').textContent = d.toLocaleTimeString('id-ID');
+}
+
+function updateCamera(data) {
+  const img = document.getElementById('cameraFeed');
+  const noSignal = document.getElementById('noSignal');
+  const canvas = document.getElementById('detectionCanvas');
+  const frame = document.getElementById('cameraFrame');
+
+  noSignal.style.display = 'none';
+  img.style.display = 'block';
+  img.src = data.imageBase64;
+
+  img.onload = () => {
+    // Draw bounding boxes on canvas
+    canvas.width = img.offsetWidth;
+    canvas.height = img.offsetHeight;
+    canvas.style.width = img.offsetWidth + 'px';
+    canvas.style.height = img.offsetHeight + 'px';
+    canvas.style.left = img.offsetLeft + 'px';
+    canvas.style.top = img.offsetTop + 'px';
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const scaleX = img.offsetWidth / data.imageWidth;
+    const scaleY = img.offsetHeight / data.imageHeight;
+
+    data.predictions.forEach((pred, i) => {
+      const x = (pred.x - pred.width / 2) * scaleX;
+      const y = (pred.y - pred.height / 2) * scaleY;
+      const w = pred.width * scaleX;
+      const h = pred.height * scaleY;
+      const conf = Math.round(pred.confidence * 100);
+
+      // Box
+      ctx.strokeStyle = '#ff3d57';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#ff3d57';
+      ctx.shadowBlur = 8;
+      ctx.strokeRect(x, y, w, h);
+
+      // Label background
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = 'rgba(255,61,87,0.85)';
+      ctx.fillRect(x, y - 22, w, 22);
+
+      // Label text
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px Share Tech Mono, monospace';
+      ctx.fillText(`HUMAN #${i+1} — ${conf}%`, x + 5, y - 7);
+    });
+
+    // Size info
+    document.getElementById('imgSize').textContent = `${data.imageWidth}×${data.imageHeight}`;
+  };
+
+  // Radar pulse if detecting
+  const radar = document.getElementById('radarRing');
+  if (data.humanCount > 0) {
+    radar.className = 'radar-ring active';
+  } else {
+    radar.className = 'radar-ring';
+  }
+}
+
+function updateLog(data) {
+  const logArea = document.getElementById('logArea');
+  const d = new Date(data.timestamp);
+  const timeStr = d.toLocaleTimeString('id-ID');
+
+  if (isFirstEntry) {
+    logArea.innerHTML = '';
+    isFirstEntry = false;
+  }
+
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `
+    <div class="log-time">${timeStr}</div>
+    <div class="log-count ${data.humanCount > 0 ? 'alert-count' : ''}">${data.humanCount}</div>
+    <div>
+      <div style="font-size:13px;font-weight:600;color:${data.humanCount > 0 ? 'var(--accent2)' : 'var(--green)'};letter-spacing:1px">
+        ${data.humanCount > 0 ? `${data.humanCount} MANUSIA` : 'AREA BERSIH'}
+      </div>
+      <div class="log-detail">${data.humanCount > 0 ? 'Terdeteksi — Waspada' : 'Tidak ada aktivitas'}</div>
+    </div>
+  `;
+
+  logArea.insertBefore(entry, logArea.firstChild);
+
+  // Keep max 50 logs
+  while (logArea.children.length > 50) {
+    logArea.removeChild(logArea.lastChild);
+  }
+
+  logEntries.push(data);
+  document.getElementById('logCount').textContent = `${logArea.children.length} entri`;
+}
+
+function updateConfidenceList(predictions) {
+  const container = document.getElementById('confidenceList');
+  if (!predictions || predictions.length === 0) {
+    container.innerHTML = '<div style="color:var(--green);letter-spacing:1px">✓ Area bersih</div>';
+    return;
+  }
+
+  container.innerHTML = predictions.map((p, i) => {
+    const pct = Math.round(p.confidence * 100);
+    return `
+      <div class="detect-item">
+        <div class="detect-label">Human #${i+1}</div>
+        <div class="conf-bar-bg">
+          <div class="conf-bar-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="conf-pct">${pct}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateAlert(count) {
+  const banner = document.getElementById('alertBanner');
+  banner.style.display = count > 0 ? 'block' : 'none';
+  if (count > 0) banner.textContent = `⚠ ${count} MANUSIA TERDETEKSI — AREA AKTIF`;
+}
+
+// Load latest data on page open
+fetch('/latest').then(r => r.json()).then(data => {
+  if (data.timestamp) socket.emit('init', data);
+});
+</script>
+</body>
+</html>
