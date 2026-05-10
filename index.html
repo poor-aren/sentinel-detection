@@ -3,159 +3,174 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Human Detection – ESP32 + YOLOv11</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@300;500;700&display=swap" rel="stylesheet">
+<title>Human Detection ✨</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --accent:#00ff88;--accent2:#00ccff;--danger:#ff4444;--warn:#ffaa00;
-  --bg:#0a0e1a;--bg2:#111827;--bg3:#1a2235;--border:#1e3a5f;
-  --text:#e2e8f0;--muted:#64748b;
+  --pink:#ff6b9d;--pink-l:#fff0f5;--pink-m:#ffd6e7;
+  --purple:#a78bfa;--purple-l:#f5f3ff;--purple-m:#ede9fe;
+  --teal:#34d399;--teal-l:#ecfdf5;
+  --blue:#60a5fa;--blue-l:#eff6ff;
+  --yellow:#fbbf24;--yellow-l:#fffbeb;
+  --red:#f87171;--red-l:#fef2f2;
+  --text:#374151;--muted:#9ca3af;--light:#f9fafb;--border:#e5e7eb;
+  --white:#ffffff;
 }
-body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh;padding:1.5rem}
-.wrap{max-width:860px;margin:0 auto}
-
-.header{display:flex;align-items:center;gap:14px;margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
-.logo{width:42px;height:42px;background:linear-gradient(135deg,#00ff88,#00ccff);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
-.title{font-size:20px;font-weight:700;letter-spacing:-.3px}
-.subtitle{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:3px}
-.status-wrap{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
-.dot{width:9px;height:9px;border-radius:50%;background:#2d3748;flex-shrink:0;transition:.3s}
-.dot.online{background:var(--accent);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(0,255,136,.1)}50%{box-shadow:0 0 0 8px rgba(0,255,136,.05)}}
-
+body{background:#fdf6ff;color:var(--text);font-family:'Nunito',sans-serif;min-height:100vh;padding:1.5rem}
+.wrap{max-width:840px;margin:0 auto}
+ 
+.header{display:flex;align-items:center;gap:14px;margin-bottom:1.75rem;background:var(--white);border-radius:20px;padding:16px 20px;box-shadow:0 2px 16px rgba(167,139,250,.13)}
+.logo{width:46px;height:46px;background:linear-gradient(135deg,var(--pink),var(--purple));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 4px 12px rgba(255,107,157,.28)}
+.title{font-size:18px;font-weight:800;color:var(--text)}
+.subtitle{font-size:11px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono',monospace}
+.status-pill{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--muted);background:var(--light);padding:7px 14px;border-radius:20px;border:1.5px solid var(--border)}
+.dot{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;transition:.3s}
+.dot.online{background:var(--teal);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(52,211,153,.4)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}}
+ 
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem}
-.metric{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
-.metric-val{font-size:34px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
-.metric-lbl{font-size:10px;color:var(--muted);margin-top:5px;letter-spacing:.6px;text-transform:uppercase}
-.green{color:var(--accent)}.cyan{color:var(--accent2)}.warn{color:var(--warn)}
-
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:1rem}
-.card-title{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px}
+.metric{background:var(--white);border-radius:18px;padding:18px 12px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.05);transition:.2s;border-top:4px solid transparent}
+.metric:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.09)}
+.metric-icon{font-size:26px;margin-bottom:6px}
+.metric-val{font-size:30px;font-weight:800;line-height:1;font-family:'JetBrains Mono',monospace}
+.metric-lbl{font-size:10px;color:var(--muted);margin-top:5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.m-pink{border-top-color:var(--pink)}.m-pink .metric-val{color:var(--pink)}
+.m-blue{border-top-color:var(--blue)}.m-blue .metric-val{color:var(--blue)}
+.m-yellow{border-top-color:var(--yellow)}.m-yellow .metric-val{color:var(--yellow)}
+ 
+.tab-bar{display:flex;gap:6px;margin-bottom:1.25rem;background:var(--white);padding:5px;border-radius:14px;box-shadow:0 2px 10px rgba(0,0,0,.06);width:fit-content}
+.tab{padding:7px 20px;border-radius:10px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-weight:700;font-family:'Nunito',sans-serif;transition:.15s}
+.tab.active{background:linear-gradient(135deg,var(--pink),var(--purple));color:white;box-shadow:0 3px 10px rgba(255,107,157,.3)}
+.tab:not(.active):hover{background:var(--light)}
+.pane{display:none}.pane.active{display:block}
+ 
+.card{background:var(--white);border-radius:18px;padding:18px;margin-bottom:1rem;box-shadow:0 2px 12px rgba(0,0,0,.05)}
+.card-title{font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:6px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:580px){.grid2{grid-template-columns:1fr}}
-
-.upload-zone{border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:.2s;position:relative;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
-.upload-zone:hover{border-color:var(--accent2);background:rgba(0,204,255,.03)}
+ 
+.upload-zone{border:2.5px dashed var(--pink-m);border-radius:14px;padding:22px;text-align:center;cursor:pointer;transition:.2s;position:relative;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:var(--pink-l)}
+.upload-zone:hover{border-color:var(--pink);background:#ffe4f0}
 .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.upload-zone span{font-size:30px}
-.upload-txt{font-size:12px;color:var(--muted)}
-#preview{max-width:100%;max-height:140px;border-radius:8px;display:none;margin-top:10px}
-
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:8px;border:none;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;width:100%;margin-top:10px;transition:.15s}
-.btn-go{background:var(--accent);color:#0a0e1a}
-.btn-go:hover{filter:brightness(1.1)}
-.btn-go:disabled{opacity:.35;cursor:not-allowed;filter:none}
-
-.result-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;min-height:90px}
-.big-num{font-size:52px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent);text-align:center;line-height:1}
-.big-sub{font-size:12px;color:var(--muted);text-align:center;margin-top:4px}
+.upload-emoji{font-size:34px;line-height:1}
+.upload-txt{font-size:12px;color:var(--pink);font-weight:800}
+.upload-hint{font-size:10px;color:var(--muted);font-weight:600}
+#preview{max-width:100%;max-height:130px;border-radius:10px;display:none;margin-top:10px;border:3px solid var(--pink-m)}
+ 
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border-radius:12px;border:none;cursor:pointer;font-family:'Nunito',sans-serif;font-size:14px;font-weight:800;width:100%;margin-top:10px;transition:.15s}
+.btn-go{background:linear-gradient(135deg,var(--pink),var(--purple));color:white;box-shadow:0 4px 14px rgba(255,107,157,.3)}
+.btn-go:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(255,107,157,.4)}
+.btn-go:active{transform:translateY(0)}
+.btn-go:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+ 
+.result-box{background:var(--purple-l);border:2px solid var(--purple-m);border-radius:14px;padding:14px;min-height:90px}
+.big-num{font-size:54px;font-weight:800;color:var(--purple);text-align:center;line-height:1;font-family:'JetBrains Mono',monospace}
+.big-sub{font-size:12px;color:var(--purple);text-align:center;margin-top:4px;font-weight:700;opacity:.7}
 .dets{margin-top:10px;display:flex;flex-direction:column;gap:5px;max-height:150px;overflow-y:auto}
-.det{display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border-radius:6px;padding:6px 10px;font-size:11px;font-family:'JetBrains Mono',monospace}
-.conf{background:rgba(0,255,136,.12);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600}
-
-.serial-box{background:#0d1117;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#00ff88;min-height:90px;white-space:pre-wrap;line-height:1.7}
-
-.log{background:var(--bg3);border:1px solid var(--border);border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
-.ll{color:var(--muted)}.ok{color:var(--accent)}.err{color:var(--danger)}.info{color:var(--accent2)}
-
+.det{display:flex;align-items:center;justify-content:space-between;background:white;border-radius:8px;padding:6px 10px;font-size:11px;font-family:'JetBrains Mono',monospace;border:1.5px solid var(--purple-m)}
+.conf{background:var(--purple-m);color:var(--purple);padding:2px 8px;border-radius:6px;font-size:10px;font-weight:800}
+ 
+.serial-box{background:#f0f9ff;border:2px solid #bfdbfe;border-radius:14px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#1e40af;min-height:90px;white-space:pre-wrap;line-height:1.8}
+ 
 .jb-status{font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:8px;min-height:18px}
-
-.tab-bar{display:flex;gap:6px;margin-bottom:1.25rem}
-.tab{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:12px;font-family:'JetBrains Mono',monospace;transition:.15s}
-.tab.active{background:var(--bg3);color:var(--accent2);border-color:var(--accent2)}
-.pane{display:none}.pane.active{display:block}
+ 
+.log{background:var(--light);border:1.5px solid var(--border);border-radius:14px;font-family:'JetBrains Mono',monospace;font-size:11px;padding:12px;height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;line-height:1.6}
+.ll{color:var(--muted)}.ok{color:#059669}.err{color:var(--red)}.info{color:#2563eb}
+ 
+.empty{color:var(--muted);font-size:12px;text-align:center;padding:20px;font-weight:700}
+.pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.pill-ok{background:var(--teal-l);color:#059669}
+.pill-err{background:var(--red-l);color:var(--red)}
+.pill-warn{background:var(--yellow-l);color:#d97706}
 </style>
 </head>
 <body>
 <div class="wrap">
-
+ 
   <div class="header">
-    <div class="logo">👁</div>
+    <div class="logo">🔍</div>
     <div>
-      <div class="title">Human Detection Dashboard</div>
-      <div class="subtitle">ESP32-CAM → YOLOv11 Roboflow → JSONBin</div>
+      <div class="title">Human Detection ✨</div>
+      <div class="subtitle">ESP32-CAM → YOLOv11 → JSONBin → ESP32</div>
     </div>
-    <div class="status-wrap">
-      <span id="statusTxt">offline</span>
+    <div class="status-pill">
       <div class="dot" id="dot"></div>
+      <span id="statusTxt">offline</span>
     </div>
   </div>
-
+ 
   <div class="metrics">
-    <div class="metric">
-      <div class="metric-val green" id="mCount">—</div>
+    <div class="metric m-pink">
+      <div class="metric-icon">🧑</div>
+      <div class="metric-val" id="mCount">—</div>
       <div class="metric-lbl">Manusia Terdeteksi</div>
     </div>
-    <div class="metric">
-      <div class="metric-val cyan" id="mTime">—</div>
+    <div class="metric m-blue">
+      <div class="metric-icon">⚡</div>
+      <div class="metric-val" id="mTime">—</div>
       <div class="metric-lbl">Waktu Respons</div>
     </div>
-    <div class="metric">
-      <div class="metric-val warn" id="mTotal">0</div>
+    <div class="metric m-yellow">
+      <div class="metric-icon">📸</div>
+      <div class="metric-val" id="mTotal">0</div>
       <div class="metric-lbl">Total Scan</div>
     </div>
   </div>
-
+ 
   <div class="tab-bar">
     <button class="tab active" onclick="sw('detect',this)">🔍 Deteksi</button>
     <button class="tab" onclick="sw('log',this)">📋 Log</button>
   </div>
-
+ 
   <div id="tab-detect" class="pane active">
     <div class="grid2">
       <div class="card">
-        <div class="card-title">📷 Kirim Gambar ke YOLOv11</div>
+        <div class="card-title">📷 Upload Gambar</div>
         <div class="upload-zone">
           <input type="file" id="imgInput" accept="image/*" onchange="onFile(this)">
-          <span>📸</span>
-          <div class="upload-txt">Klik / drag gambar<br><small>Simulasi kiriman ESP32-CAM</small></div>
+          <div class="upload-emoji">🖼️</div>
+          <div class="upload-txt">Klik atau drag foto di sini~</div>
+          <div class="upload-hint">Simulasi kiriman dari ESP32-CAM</div>
           <img id="preview">
         </div>
         <button class="btn btn-go" id="btnDetect" onclick="runDetect()" disabled>
-          🔍 Deteksi Sekarang
+          ✨ Deteksi Sekarang!
         </button>
       </div>
-
+ 
       <div class="card">
         <div class="card-title">👥 Hasil YOLOv11</div>
         <div class="result-box" id="resultBox">
-          <div style="color:var(--muted);font-size:12px;text-align:center;padding:18px">Belum ada hasil</div>
+          <div class="empty">🌸 Belum ada hasil deteksi</div>
         </div>
         <div class="jb-status" id="jbStatus"></div>
       </div>
     </div>
-
+ 
     <div class="card">
       <div class="card-title">📡 Serial Monitor ESP32</div>
-      <div class="serial-box" id="serialBox">Menunggu hasil deteksi...</div>
+      <div class="serial-box" id="serialBox">💤 Menunggu hasil deteksi...</div>
     </div>
   </div>
-
+ 
   <div id="tab-log" class="pane">
     <div class="card">
       <div class="card-title">📋 Activity Log</div>
       <div class="log" id="logBox"></div>
     </div>
   </div>
-
+ 
 </div>
-
 <script>
-// ════════════════════════════════════════
-//  CONFIG — langsung tertanam
-// ════════════════════════════════════════
 const ROBOFLOW_URL = "https://serverless.roboflow.com/human-surveillance-detection-kesab/7";
 const ROBOFLOW_KEY = "Xi9q0U8qd4pLO3EzyzaP";
-
-const JSONBIN_BIN_ID = "6989f92bd0ea881f40ad5b6c";
+const JSONBIN_BIN_ID = "6a008f45adc21f119a7d1bd5";
 const JSONBIN_KEY    = "$2a$10$0p5f.8.7MaVHfCRw6y28wuozbrEphXg0vBuLRVccJXXZgGIL0kpD.";
 const JSONBIN_BASE   = "https://api.jsonbin.io/v3/b/" + JSONBIN_BIN_ID;
-
-// ════════════════════════════════════════
-let totalScan = 0;
-let logs = [];
-
+ 
+let totalScan = 0, logs = [];
+ 
 function log(msg, type='ll') {
   const t = new Date().toLocaleTimeString('id');
   logs.push(`<div class="${type}">[${t}] ${msg}</div>`);
@@ -164,14 +179,14 @@ function log(msg, type='ll') {
   b.innerHTML = logs.join('');
   b.scrollTop = b.scrollHeight;
 }
-
+ 
 function sw(name, btn) {
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
 }
-
+ 
 function onFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -185,91 +200,75 @@ function onFile(input) {
   };
   r.readAsDataURL(file);
 }
-
+ 
 async function runDetect() {
   const file = document.getElementById('imgInput').files[0];
   if (!file) return;
-
   const btn = document.getElementById('btnDetect');
   btn.disabled = true;
   btn.textContent = '⏳ Mendeteksi...';
   log('Mengirim gambar ke YOLOv11 Roboflow...', 'info');
-
   try {
-    // 1. Encode gambar ke base64 (sesuai Roboflow API docs)
-    const base64 = await new Promise((resolve, reject) => {
+    const base64 = await new Promise((res, rej) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload  = () => resolve(reader.result);
-      reader.onerror = reject;
+      reader.onload  = () => res(reader.result);
+      reader.onerror = rej;
     });
     const t0 = Date.now();
-    const res = await fetch(`${ROBOFLOW_URL}?api_key=${ROBOFLOW_KEY}`, {
+    const resp = await fetch(`${ROBOFLOW_URL}?api_key=${ROBOFLOW_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: base64
     });
     const ms = Date.now() - t0;
-
-    if (!res.ok) throw new Error(`Roboflow HTTP ${res.status}`);
-    const data = await res.json();
-
-    // 2. Hitung manusia
+    if (!resp.ok) throw new Error(`Roboflow HTTP ${resp.status}`);
+    const data = await resp.json();
     const preds = data.predictions || [];
     const count = preds.length;
     totalScan++;
-
-    // 3. Update UI
     document.getElementById('mCount').textContent = count;
     document.getElementById('mTime').textContent  = ms + 'ms';
     document.getElementById('mTotal').textContent = totalScan;
     document.getElementById('dot').className = 'dot online';
     document.getElementById('statusTxt').textContent = 'online';
-
     showResult(count, preds);
     updateSerial(count, preds);
-    log(`✓ Terdeteksi ${count} manusia (${ms}ms)`, 'ok');
-
-    // 4. Simpan ke JSONBin
+    log(`✓ Terdeteksi ${count} manusia dalam ${ms}ms`, 'ok');
     await saveJsonBin(count);
-
   } catch(e) {
     log('❌ ' + e.message, 'err');
     document.getElementById('resultBox').innerHTML =
-      `<div style="color:var(--danger);padding:8px;font-size:12px">${e.message}</div>`;
+      `<div class="empty" style="color:#f87171">😢 Error: ${e.message}</div>`;
   }
-
   btn.disabled = false;
-  btn.textContent = '🔍 Deteksi Sekarang';
+  btn.textContent = '✨ Deteksi Sekarang!';
 }
-
+ 
 function showResult(count, preds) {
-  let html = `<div class="big-num">${count}</div>
-              <div class="big-sub">manusia terdeteksi</div>`;
+  let html = `<div class="big-num">${count}</div><div class="big-sub">manusia terdeteksi 🧑</div>`;
   if (preds.length > 0) {
     html += '<div class="dets">';
     preds.forEach((p, i) => {
       const c = Math.round((p.confidence||0)*100);
-      html += `<div class="det"><span>#${i+1} ${p.class||'person'}</span><span class="conf">${c}%</span></div>`;
+      html += `<div class="det"><span>#${i+1} ${p.class||'human'}</span><span class="conf">${c}%</span></div>`;
     });
     html += '</div>';
   }
   document.getElementById('resultBox').innerHTML = html;
 }
-
+ 
 function updateSerial(count, preds) {
   const now = new Date().toLocaleString('id');
   let out = `================================\n>>> HUMAN COUNT: ${count}\n================================\n`;
-  preds.forEach(p => {
-    out += `  → ${p.class||'person'} | ${Math.round((p.confidence||0)*100)}%\n`;
-  });
+  preds.forEach(p => { out += `  → ${p.class||'human'} | ${Math.round((p.confidence||0)*100)}%\n`; });
   out += `[${now}]\n[WAIT] Scan berikutnya dalam 10 detik...`;
   document.getElementById('serialBox').textContent = out;
 }
-
+ 
 async function saveJsonBin(count) {
   const el = document.getElementById('jbStatus');
-  el.innerHTML = '<span style="color:var(--warn)">⏳ Menyimpan ke JSONBin...</span>';
+  el.innerHTML = '<span class="pill pill-warn">⏳ Menyimpan ke JSONBin...</span>';
   try {
     const res = await fetch(JSONBIN_BASE, {
       method: 'PUT',
@@ -281,15 +280,15 @@ async function saveJsonBin(count) {
       body: JSON.stringify({ human_count: count, timestamp: new Date().toISOString() })
     });
     if (!res.ok) throw new Error(`JSONBin HTTP ${res.status}`);
-    el.innerHTML = `<span style="color:var(--accent)">✓ Tersimpan ke JSONBin</span> · ${new Date().toLocaleTimeString('id')}`;
+    el.innerHTML = `<span class="pill pill-ok">✅ Tersimpan ke JSONBin · ${new Date().toLocaleTimeString('id')}</span>`;
     log('JSONBin updated: human_count=' + count, 'ok');
   } catch(e) {
-    el.innerHTML = `<span style="color:var(--danger)">✗ JSONBin: ${e.message}</span>`;
+    el.innerHTML = `<span class="pill pill-err">❌ JSONBin: ${e.message}</span>`;
     log('JSONBin error: ' + e.message, 'err');
   }
 }
-
-log('Dashboard siap.', 'info');
+ 
+log('🌸 Dashboard siap!', 'info');
 </script>
 </body>
 </html>
